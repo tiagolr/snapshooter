@@ -2,7 +2,7 @@
 
 Snapshots plugin for cockos Reaper DAW
 
-Snapshooter allows to create param snapshots and recall them or write them to the playlist creating patch morphs. Different from SWS snapshots, only the diffing of params is written to the playlist wich allows to create complex patch morphs.
+Snapshooter allows to create param snapshots and recall them or write them to the playlist creating patch morphs. Different from SWS snapshots, only the diffing of params on snapshot and current view is written to the playlist.
 
 #### Instalation
 ```
