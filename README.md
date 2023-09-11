@@ -16,4 +16,4 @@ Features:
 Tips:
   * Set global automation to __READ__ to save current song snapshot
   * Set global automation to other value than __READ__ to save snapshots from mixer state
-  * If params are not writting make sure they have a different value from the snapshot
+  * If params are not writing make sure they have a different current value from the snapshot

@@ -333,8 +333,9 @@ end
 function ui_start()
   -- package.path = reaper.GetResourcePath() .. '/Scripts/rtk/1/?.lua'
   -- local rtk = require('rtk')
+  local sep = package.config:sub(1, 1)
   local script_folder = debug.getinfo(1).source:match("@?(.*[\\|/])")
-  local rtk = dofile(script_folder .. 'tilr_snapshooter/rtk.lua')
+  local rtk = dofile(script_folder .. 'tilr_Snapshooter' .. sep .. 'rtk.lua')
   local window = rtk.Window{w=470, h=390}
   window:open{align='center'}
   local box = window:add(rtk.VBox{margin=10})
