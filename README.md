@@ -1,19 +1,19 @@
 # Snapshooter
 
-Snapshots plugin for cockos Reaper DAW
+Reaper snapshots plugin
 
-Snapshooter allows to create param snapshots and recall them or write them to the playlist creating patch morphs. Different from SWS snapshots, only the diffing of params on snapshot and current view is written to the playlist.
+![snapshooter.gif](doc/snapshooter.gif)
 
-#### Instalation
-```
-install rtk package 
-clone snapshooter into Reaper/Scripts
-open snapshooter from inside reaper
-```
+Snapshooter allows to create param snapshots and recall them or write them to the playlist creating patch morphs.
+Different from SWS snapshots, only the params changed are written to the playlist as automation points.
 
 Features:
   * Stores and retrieves FX params
-  * Stores and retries mixer states for track Volume, Pan, Mute and Sends
-  * Writes snapshots diffing from current state into the playlist creating patch morphs
-  * recalls param values from snapshots into project timeline
-  * tested with dozens of tracks and hundreds of params with minimal cpu load and linear overhead cost
+  * Stores and retrieves mixer states for track Volume, Pan, Mute and Sends
+  * Writes only changed params by diffing the current state and selected snapshot
+  * Tested with hundreds of params with minimal overhead
+
+Tips:
+  * Set global automation to __READ__ to save current song snapshot
+  * Set global automation to other value than __READ__ to save snapshots from mixer state
+  * If params are not writting make sure they have a different value from the snapshot

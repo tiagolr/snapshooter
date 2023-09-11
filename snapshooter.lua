@@ -308,6 +308,10 @@ function clearsnap(slot)
   reaper.SetProjExtState(0, 'snapshooter', 'snapdate'..slot, '')
 end
 
+--------------------------------------------------------------------------------
+-- UI
+--------------------------------------------------------------------------------
+
 ui_snaprows = {}
 function ui_refresh_buttons()
   for i, row in ipairs(ui_snaprows) do
@@ -416,43 +420,3 @@ ui_start()
   -- reaper.showConsoleMsg(¨chars¨) // show console output
   -- reaper.NamedCommandLookup('_RSad7acd2e5dbd41ab15aa68ffdb01c4c5fc82c446',0)
   -- reaper.Main_OnCommand(55863, 0)
-
--- TODOs
-  -- help text: xx params applied
-  -- envelopes to mixer
-      -- if vol envelope and vol envelope is armed
-      -- local ret, value, _, _, _ = reaper.Envelope_Evaluate(env, reaper.GetCursorPosition(), 0, 0)
-      -- mixervolume = reaper.scaleFromEnvelope(env, value)
-  -- mixer to envelopes
-    -- new env point foreach mixer param foreach seltrack
-  -- detect midi events for midi mapping, -- chn10 == edit/studio mode, chn11 == recording/songmode
-      -- C3-C4 ch 10 == fns, update snapshots, toggle filters, split at cursor
-      -- C4-C5 ch 10 == select snapshot 1-12
-      -- C5-C6 ch 10 == write snapshot 1-12
-      -- CX-CY ch 11 == param launch/apply snapshot
-      -- CW-CZ ch 11 == param write ahead of cursor 1bar, 2bar, [triggersync], [possync] -- check grossbeat modes
-
---[[               33 tracks 33 params written
-  [*] 1: xx/xx/xxxx :_alias       [save] [del]
-  [ ] 2: empty                    [save] [del]
-  [ ] 3: empty                    [save] [del]
-  [ ] 4: empty                    [save] [del]
-  [ ] 5: empty
-  \//\
-
-  SNAP 1
-  [ APPLY ] [ WRITE ]
-  [x] sel tracks [x] vol [x] pan [x] mute [x] sends
-
-  Mixer
-  [split at cursor]
-  mixer vol [read][write] pan [read][write] mute [read][write]
-  sends vol [read][write] pan [read][write] mute [read][write]
-  [x] sel tracks
-  [update sss]  -- add new instruments to snapshots
-
-
-  ------ other program controls snapshots via tcp requests
-  apply params 1by1 and tween them
-  open TCP port with API to apply param with a certain ?curve/easing? and trigger (on beat, imeddiate, retrigger etc, check ableton)
- ]]
