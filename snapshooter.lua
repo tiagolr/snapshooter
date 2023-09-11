@@ -210,6 +210,12 @@ function applydiff(diff, write)
                 local scaling = reaper.GetEnvelopeScalingMode(env)
                 reaper.InsertEnvelopePoint(env, cursor, reaper.ScaleToEnvelopeMode(scaling, value), 0, 0, true)
               else
+                -- FIX flip mute value before writting to playlist
+                if param == 'Mute' and value == 1 then value = 0
+                elseif param == 'Mute' and value == 0 then value = 1 end
+                -- FIX flip pan value before writting to playlist
+                if param == 'Pan' then value = -value end
+                --
                 reaper.InsertEnvelopePoint(env, cursor, value, 0, 0, true)
               end
             elseif line[2] == 'Volume' then
