@@ -18,7 +18,7 @@ globals = {
   ease = 'linear'
 }
 
--- init global values from project config
+-- init globals from project config
 local exists, seltracks = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_seltracks')
 if exists ~= 0 then globals.ui_checkbox_seltracks = seltracks == 'true' end
 local exists, volume = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_volume')
@@ -350,7 +350,7 @@ function applysnap(slot, write)
       params_to_tween = {}
     end
     applydiff(diff, write, use_tween)
-    rtk.callafter(1, reaper.UpdateArrange)
+    reaper.defer(reaper.UpdateArrange)
     if use_tween then
       bpm, bpi = reaper.GetProjectTimeSignature()
       duration = 60 / bpm * bpi
