@@ -9,9 +9,30 @@ function logtable(table, indent)
 end
 
 globals = {
+  ui_checkbox_seltracks = false,
+  ui_checkbox_volume = true,
+  ui_checkbox_pan = true,
+  ui_checkbox_mute = true,
+  ui_checkbox_sends = true,
   tween = 'none',
   ease = 'linear'
 }
+
+-- init global values from project config
+local exists, seltracks = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_seltracks')
+if exists ~= 0 then globals.ui_checkbox_seltracks = seltracks == 'true' end
+local exists, volume = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_volume')
+if exists ~= 0 then globals.ui_checkbox_volume = volume == 'true' end
+local exists, pan = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_pan')
+if exists ~= 0 then globals.ui_checkbox_pan = pan == 'true' end
+local exists, mute = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_mute')
+if exists ~= 0 then globals.ui_checkbox_mute = mute == 'true' end
+local exists, sends = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_sends')
+if exists ~= 0 then globals.ui_checkbox_sends = sends == 'true' end
+local exists, tween = reaper.GetProjExtState(0, 'snapshooter', 'ui_tween_menu')
+if exists ~= 0 then globals.tween = tween end
+local exists, ease = reaper.GetProjExtState(0, 'snapshooter', 'ui_ease_menu')
+if exists ~= 0 then globals.ease = ease end
 
 function makesnap()
   local numtracks = reaper.GetNumTracks()
@@ -190,24 +211,19 @@ function applydiff(diff, write, tween)
       sends[key..tostring(count)] = i
     end
   end
-  local exists, seltracks_chkbox = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_seltracks')
-  local exists, vol_chkbox = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_volume')
-  local exists, pan_chkbox = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_pan')
-  local exists, mute_chkbox = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_mute')
-  local exists, sends_chkbox = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_sends')
 
   -- apply diff lines
   for i,line in ipairs(diff) do
     tr = tracks[tostring(line[1])]
     if tr ~= nil then
       local track = reaper.GetTrack(0, tr)
-      if seltracks_chkbox ~= 'true' or reaper.IsTrackSelected(track) then
+      if not globals.ui_checkbox_seltracks or reaper.IsTrackSelected(track) then
         if #line == 3 then -- vol/pan/mute
           param = line[2]
           value = tonumber(line[3])
-          if param == 'Volume' and vol_chkbox == 'true' or
-            param == 'Pan' and vol_chkbox == 'true' or
-            param == 'Mute' and vol_chkbox == 'true' then
+          if param == 'Volume' and globals.ui_checkbox_volume or
+            param == 'Pan' and globals.ui_checkbox_pan or
+            param == 'Mute' and globals.ui_checkbox_mute then
             if write then
               showTrackEnvelopes(track, line[2])
               env = reaper.GetTrackEnvelopeByName(track, param)
@@ -265,7 +281,7 @@ function applydiff(diff, write, tween)
           local key = line[4]
           local count = line[3]
           send = sends[key..count]
-          if send and sends_chkbox == 'true' then
+          if send and globals.ui_checkbox_sends then
             cnt = tonumber(line[3])
             key = line[4]
             vol = line[5]
@@ -488,48 +504,48 @@ function ui_start()
   end
 
   -- checkboxes
-  row = box:add(rtk.HBox{tmargin=10})
-  ui_checkbox_seltracks = row:add(rtk.CheckBox{'Selected tracks'})
-  ui_checkbox_volume = row:add(rtk.CheckBox{'Vol', lmargin=15})
-  ui_checkbox_pan = row:add(rtk.CheckBox{'Pan',lmargin=15})
-  ui_checkbox_mute = row:add(rtk.CheckBox{'Mute', lmargin=15})
-  ui_checkbox_sends = row:add(rtk.CheckBox{'Sends', lmargin=15})
+  local row = box:add(rtk.HBox{tmargin=10})
+  local ui_checkbox_seltracks = row:add(rtk.CheckBox{'Selected tracks'})
+  local ui_checkbox_volume = row:add(rtk.CheckBox{'Vol', lmargin=15})
+  local ui_checkbox_pan = row:add(rtk.CheckBox{'Pan',lmargin=15})
+  local ui_checkbox_mute = row:add(rtk.CheckBox{'Mute', lmargin=15})
+  local ui_checkbox_sends = row:add(rtk.CheckBox{'Sends', lmargin=15})
+
+  if globals.ui_checkbox_seltracks then
+    ui_checkbox_seltracks:toggle()
+  end
+  if globals.ui_checkbox_volume then
+    ui_checkbox_volume:toggle()
+  end
+  if globals.ui_checkbox_pan then
+    ui_checkbox_pan:toggle()
+  end
+  if globals.ui_checkbox_mute then
+    ui_checkbox_mute:toggle()
+  end
+  if globals.ui_checkbox_sends then
+    ui_checkbox_sends:toggle()
+  end
 
   ui_checkbox_seltracks.onchange = function(self)
     reaper.SetProjExtState(0, 'snapshooter', 'ui_checkbox_seltracks', tostring(self.value))
+    globals.ui_checkbox_seltracks = self.value
   end
   ui_checkbox_volume.onchange = function(self)
     reaper.SetProjExtState(0, 'snapshooter', 'ui_checkbox_volume', tostring(self.value))
+    globals.ui_checkbox_volume = self.value
   end
   ui_checkbox_pan.onchange = function(self)
     reaper.SetProjExtState(0, 'snapshooter', 'ui_checkbox_pan', tostring(self.value))
+    globals.ui_checkbox_pan = self.value
   end
   ui_checkbox_mute.onchange = function(self)
     reaper.SetProjExtState(0, 'snapshooter', 'ui_checkbox_mute', tostring(self.value))
+    globals.ui_checkbox_mute = self.value
   end
   ui_checkbox_sends.onchange = function(self)
     reaper.SetProjExtState(0, 'snapshooter', 'ui_checkbox_sends', tostring(self.value))
-  end
-
-  local exists, seltracks_chk = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_seltracks')
-  if exists and seltracks_chk == 'true' then
-    ui_checkbox_seltracks:toggle()
-  end
-  local exists, vol_chk = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_volume')
-  if exists and vol_chk == 'true' or exists == 0 then
-    ui_checkbox_volume:toggle()
-  end
-  local exists, pan_chk = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_pan')
-  if exists and pan_chk == 'true' or exists == 0 then
-    ui_checkbox_pan:toggle()
-  end
-  local exists, mute_chk = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_mute')
-  if exists and mute_chk == 'true' or exists == 0 then
-    ui_checkbox_mute:toggle()
-  end
-  local exists, sends_chk = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_sends')
-  if exists and sends_chk == 'true' or exists == 0 then
-    ui_checkbox_sends:toggle()
+    globals.ui_checkbox_sends = self.value
   end
 
   -- tweening controls
@@ -550,18 +566,14 @@ function ui_start()
     reaper.SetProjExtState(0, 'snapshooter', 'ui_tween_menu', self.selected)
     globals.tween = self.selected
   end
-  local exists, tween_menu_opt = reaper.GetProjExtState(0, 'snapshooter', 'ui_tween_menu')
-  if exists ~= 0 then
-    tween_menu:select(tween_menu_opt)
-  end
 
   row:add(rtk.Text{'Ease', lmargin=20, rmargin=5, tmargin=5})
   local ease_menu = row:add(rtk.OptionMenu{
     menu = {
         { 'Linear', id='linear' },
-        { 'Ease In', id='easein' },
-        { 'Ease Out', id='easeout' },
-        { 'Ease InOut', id='easeinout' },
+        { 'In', id='easein' },
+        { 'Out', id='easeout' },
+        { 'InOut', id='easeinout' },
     }
   })
   ease_menu:select(globals.ease)
@@ -569,16 +581,18 @@ function ui_start()
     reaper.SetProjExtState(0, 'snapshooter', 'ui_ease_menu', self.selected)
     globals.ease = self.selected
   end
-  local exists, ease_menu_opt = reaper.GetProjExtState(0, 'snapshooter', 'ui_ease_menu')
-  if exists ~= 0 then
-    ease_menu:select(ease_menu_opt)
-  end
 
   ui_refresh_buttons()
 end
 
-ui_start()
+if not skip_init then -- skip_init set from other scripts
+  ui_start()
+end
 
+return {
+  savesnap = savesnap,
+  applysnap = applysnap
+}
 -- interactive dev:
   -- reaper.showConsoleMsg(¨chars¨) // show console output
   -- reaper.NamedCommandLookup('_RSad7acd2e5dbd41ab15aa68ffdb01c4c5fc82c446',0)
