@@ -11,9 +11,10 @@ Features:
   * Stores and retrieves FX params
   * Stores and retrieves mixer states for track Volume, Pan, Mute and Sends
   * Writes only changed params by diffing the current state and selected snapshot
+  * Transition snapshots using tween and ease functions
   * Tested with hundreds of params with minimal overhead
 
 Tips:
-  * Set global automation to __READ__ to save current song snapshot
-  * Set global automation to other value than __READ__ to save snapshots from mixer state
+  * Set global automation to _READ_ to save current song snapshot
+  * Set global automation to other value than _READ_ to save snapshots from mixer state
   * If params are not writing make sure they have a different current value from the snapshot

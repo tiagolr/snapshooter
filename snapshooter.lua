@@ -1,12 +1,17 @@
-function logmsg(t)
+function log(t)
   reaper.ShowConsoleMsg(t .. '\n')
 end
 function logtable(table, indent)
-  logmsg(tostring(table))
+  log(tostring(table))
   for index, value in pairs(table) do -- print table
-    logmsg('    ' .. tostring(index) .. ' : ' .. tostring(value))
+    log('    ' .. tostring(index) .. ' : ' .. tostring(value))
   end
 end
+
+globals = {
+  tween = 'none',
+  ease = 'linear'
+}
 
 function makesnap()
   local numtracks = reaper.GetNumTracks()
@@ -123,7 +128,7 @@ function insertSendEnvelopePoint(track, key, count, value, type)
       if count == cnt then
         local envelope = reaper.GetTrackSendInfo_Value(track, 0, send, 'P_ENV:<'..type)
         local scaling = reaper.GetEnvelopeScalingMode(envelope)
-        reaper.InsertEnvelopePoint(envelope, cursor, reaper.ScaleToEnvelopeMode(scaling, vol), 0, 0, true)
+        reaper.InsertEnvelopePoint(envelope, cursor, reaper.ScaleToEnvelopeMode(scaling, value), 0, 0, true)
         br_env = reaper.BR_EnvAlloc(envelope, false)
         active, visible, armed, inLane, laneHeight, defaultShape, minValue, maxValue, centerValue, type, faderScaling = reaper.BR_EnvGetProperties(br_env)
         reaper.BR_EnvSetProperties(br_env, true, true, true, inLane, laneHeight, defaultShape, faderScaling)
@@ -154,7 +159,7 @@ function showTrackEnvelopes(track, envtype)
 end
 
 -- apply snapshot to params or write to timeline
-function applydiff(diff, write)
+function applydiff(diff, write, tween)
   local numtracks = reaper.GetNumTracks()
   local cursor = reaper.GetCursorPosition()
   -- tracks hashmap
@@ -219,9 +224,19 @@ function applydiff(diff, write)
                 reaper.InsertEnvelopePoint(env, cursor, value, 0, 0, true)
               end
             elseif line[2] == 'Volume' then
-              reaper.SetMediaTrackInfo_Value(track, "D_VOL", value)
+              if tween then
+                local ret, vol, pan = reaper.GetTrackUIVolPan(track)
+                table.insert(params_to_tween, { track, 'Volume', null, null, vol, value })
+              else
+                reaper.SetMediaTrackInfo_Value(track, "D_VOL", value)
+              end
             elseif line[2] == 'Pan' then
-              reaper.SetMediaTrackInfo_Value(track, "D_PAN", value)
+              if tween then
+                local ret, vol, pan = reaper.GetTrackUIVolPan(track)
+                table.insert(params_to_tween, { track, 'Pan', null, null, pan, value })
+              else
+                reaper.SetMediaTrackInfo_Value(track, "D_PAN", value)
+              end
             elseif line[2] == 'Mute' then
               reaper.SetMediaTrackInfo_Value(track, "B_MUTE", value)
             end
@@ -235,10 +250,15 @@ function applydiff(diff, write)
               env = reaper.GetFXEnvelope(track, fxid, param, true)
               reaper.InsertEnvelopePoint(env, cursor, value, 0, 0, true)
             else
-              reaper.TrackFX_SetParam(track, fxid, param, value)
+              if tween then
+                local val = reaper.TrackFX_GetParam(track, fxid, param)
+                table.insert(params_to_tween, { track, param, fxid, null, val, value })
+              else
+                reaper.TrackFX_SetParam(track, fxid, param, value)
+              end
             end
           else
-            logmsg('fx not found '..tostring(line))
+            log('fx not found '..tostring(line))
             logtable(line)
           end
         elseif #line == 7 then -- sends
@@ -254,12 +274,26 @@ function applydiff(diff, write)
             if vol ~= 'unchanged' then
               if write then insertSendEnvelopePoint(track, key, cnt, tonumber(vol), 'VOLENV')
               else
-                reaper.SetTrackSendUIVol(track, send, tonumber(vol), -1)
+                if tween then
+                  local ret, svol, span = reaper.GetTrackSendUIVolPan(track, send)
+                  table.insert(params_to_tween, { track, 'Volume', null, send, tonumber(svol), tonumber(vol) })
+                else
+                  reaper.SetTrackSendUIVol(track, send, tonumber(vol), -1)
+                end
               end
             end
             if pan ~= 'unchanged' then
-              if write then insertSendEnvelopePoint(track, key, cnt, tonumber(pan), 'PANENV')
-              else reaper.SetTrackSendUIPan(track, send, tonumber(pan), -1) end
+              if write then
+                pan = -pan -- FIX flip pan before writting to playlist
+                insertSendEnvelopePoint(track, key, cnt, tonumber(pan), 'PANENV')
+              else
+                if tween then
+                  local ret, svol, span = reaper.GetTrackSendUIVolPan(track, send)
+                  table.insert(params_to_tween, { track, 'Pan', null, send, tonumber(span), tonumber(pan) })
+                else
+                  reaper.SetTrackSendUIPan(track, send, tonumber(pan), -1)
+                end
+              end
             end
             -- TODO send mute
             -- if mut ~= 'unchanged' then
@@ -295,10 +329,27 @@ function applysnap(slot, write)
     snap2 = makesnap()
     snap2 = parse(stringify(snap2)) -- normalize
     diff = difference(parse(snap1), snap2)
-    applydiff(diff, write)
+    use_tween = globals.tween ~= 'none'
+    if use_tween then
+      params_to_tween = {}
+    end
+    applydiff(diff, write, use_tween)
     rtk.callafter(1, reaper.UpdateArrange)
+    if use_tween then
+      bpm, bpi = reaper.GetProjectTimeSignature()
+      duration = 60 / bpm * bpi
+      if (globals.tween == '1/4bar') then duration = duration / 4 end
+      if (globals.tween == '1/2bar') then duration = duration / 2 end
+      if (globals.tween == '2bar') then duration = duration * 2 end
+      if (globals.tween == '4bar') then duration = duration * 4 end
+      ease_fn = tween_fns.linear
+      if (globals.ease == 'easein') then ease_fn = tween_fns.ease_in end
+      if (globals.ease == 'easeout') then ease_fn = tween_fns.ease_out end
+      if (globals.ease == 'easeinout') then ease_fn = tween_fns.ease_in_out end
+      tween_params(reaper.time_precise(), duration, ease_fn)
+    end
   else
-    logmsg('could not find snap'..slot)
+    log('could not find snap'..slot)
   end
   reaper.Main_OnCommand(40297, 0) -- Track: Unselect (clear selection of) all tracks
   for i, track in ipairs(seltracks) do
@@ -312,6 +363,68 @@ end
 function clearsnap(slot)
   reaper.SetProjExtState(0, 'snapshooter', 'snap'..slot, '')
   reaper.SetProjExtState(0, 'snapshooter', 'snapdate'..slot, '')
+end
+
+--------------------------------------------------------------------------------
+-- Tween
+--------------------------------------------------------------------------------
+tween_fns = {}
+function tween_fns.linear (t, b, _c, d) -- t: current time, b: beginning value, _c: final value, d: total duration
+  local c = _c - b;
+  return c * t / d + b;
+end
+function tween_fns.ease_in (t, b, _c, d)
+  local c = _c - b;
+  t = t / d
+  return c * t * t + b;
+end
+function tween_fns.ease_out (t, b, _c, d)
+  local var c = _c - b;
+  t = t / d
+  return -c * t * (t - 2) + b;
+end
+function tween_fns.ease_in_out (t, b, _c, d)
+  local c = _c - b;
+  t = t / (d / 2)
+  if ((t) < 1) then
+    return c / 2 * t * t + b;
+  else
+    t = t - 1
+    return -c / 2 * (t * (t - 2) - 1) + b;
+  end
+end
+
+params_to_tween = {} -- {{ track, param, fxid, send, from, to }}
+function apply_tween (track, param, fxid, send, value)
+  if send then
+    if param == 'Volume' then
+      reaper.SetTrackSendUIVol(track, send, value, -1)
+    end
+    if param == 'Pan' then
+      reaper.SetTrackSendUIPan(track, send, value, -1)
+    end
+  elseif fxid then
+    reaper.TrackFX_SetParam(track, fxid, param, value)
+  elseif param == 'Volume' then
+    reaper.SetMediaTrackInfo_Value(track, "D_VOL", value)
+  elseif param == 'Pan' then
+    reaper.SetMediaTrackInfo_Value(track, "D_PAN", value)
+  end
+end
+
+function tween_params(start, duration, ease_fn)
+  local delta = reaper.time_precise() - start
+  if (delta >= duration) then
+    for i, entry in ipairs(params_to_tween) do
+      apply_tween(entry[1], entry[2], entry[3], entry[4], entry[6])
+    end
+    return
+  end
+  for i, entry in ipairs(params_to_tween) do
+    local val = ease_fn(delta, entry[5], entry[6], duration)
+    apply_tween(entry[1], entry[2], entry[3], entry[4], val)
+  end
+  reaper.defer(function () tween_params(start, duration, ease_fn) end)
 end
 
 --------------------------------------------------------------------------------
@@ -342,7 +455,7 @@ function ui_start()
   local sep = package.config:sub(1, 1)
   local script_folder = debug.getinfo(1).source:match("@?(.*[\\|/])")
   local rtk = dofile(script_folder .. 'tilr_Snapshooter' .. sep .. 'rtk.lua')
-  local window = rtk.Window{w=470, h=390}
+  local window = rtk.Window{w=470, h=425}
   window:open{align='center'}
   local box = window:add(rtk.VBox{margin=10})
   box:add(rtk.Heading{'Snapshooter', bmargin=10})
@@ -374,6 +487,7 @@ function ui_start()
     table.insert(ui_snaprows, row)
   end
 
+  -- checkboxes
   row = box:add(rtk.HBox{tmargin=10})
   ui_checkbox_seltracks = row:add(rtk.CheckBox{'Selected tracks'})
   ui_checkbox_volume = row:add(rtk.CheckBox{'Vol', lmargin=15})
@@ -416,6 +530,48 @@ function ui_start()
   local exists, sends_chk = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_sends')
   if exists and sends_chk == 'true' or exists == 0 then
     ui_checkbox_sends:toggle()
+  end
+
+  -- tweening controls
+  row = box:add(rtk.HBox{tmargin=10})
+  row:add(rtk.Text{'Tween', rmargin=5, tmargin=5})
+  local tween_menu = row:add(rtk.OptionMenu{
+    menu = {
+        { 'None', id='none' },
+        { '1/4 Bar', id='1/4bar' },
+        { '1/2 Bar', id='1/2bar' },
+        { '1 Bar', id='1bar'},
+        { '2 Bar', id='2bar'},
+        { '4 Bar', id='4bar'},
+    }
+  })
+  tween_menu:select(globals.tween)
+  tween_menu.onchange = function (self)
+    reaper.SetProjExtState(0, 'snapshooter', 'ui_tween_menu', self.selected)
+    globals.tween = self.selected
+  end
+  local exists, tween_menu_opt = reaper.GetProjExtState(0, 'snapshooter', 'ui_tween_menu')
+  if exists ~= 0 then
+    tween_menu:select(tween_menu_opt)
+  end
+
+  row:add(rtk.Text{'Ease', lmargin=20, rmargin=5, tmargin=5})
+  local ease_menu = row:add(rtk.OptionMenu{
+    menu = {
+        { 'Linear', id='linear' },
+        { 'Ease In', id='easein' },
+        { 'Ease Out', id='easeout' },
+        { 'Ease InOut', id='easeinout' },
+    }
+  })
+  ease_menu:select(globals.ease)
+  ease_menu.onchange = function (self)
+    reaper.SetProjExtState(0, 'snapshooter', 'ui_ease_menu', self.selected)
+    globals.ease = self.selected
+  end
+  local exists, ease_menu_opt = reaper.GetProjExtState(0, 'snapshooter', 'ui_ease_menu')
+  if exists ~= 0 then
+    ease_menu:select(ease_menu_opt)
   end
 
   ui_refresh_buttons()
