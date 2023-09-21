@@ -2,6 +2,12 @@
 
 Reaper snapshots plugin
 
+```
+Installation:
+Reapack > Synchronize Packages
+Reapack > Browse packages
+```
+
 ![snapshooter.gif](doc/snapshooter.gif)
 
 Snapshooter allows to create param snapshots and recall or write them to the playlist creating patch morphs.

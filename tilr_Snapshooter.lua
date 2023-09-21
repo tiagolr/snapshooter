@@ -784,7 +784,3 @@ return {
   savesnap = savesnap,
   applysnap = applysnap
 }
--- interactive dev:
-  -- reaper.showConsoleMsg(¨chars¨) // show console output
-  -- reaper.NamedCommandLookup('_RSad7acd2e5dbd41ab15aa68ffdb01c4c5fc82c446',0)
-  -- reaper.Main_OnCommand(55863, 0)
