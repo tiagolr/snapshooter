@@ -9,6 +9,8 @@ function logtable(table, indent)
 end
 
 globals = {
+  win_x = null,
+  win_y = null,
   ui_checkbox_seltracks = false,
   ui_checkbox_volume = true,
   ui_checkbox_pan = true,
@@ -26,6 +28,10 @@ globals = {
 }
 
 -- init globals from project config
+local exists, win_x = reaper.GetProjExtState(0, 'snapshooter', 'win_x')
+if exists ~= 0 then globals.win_x = tonumber(win_x) end
+local exists, win_y = reaper.GetProjExtState(0, 'snapshooter', 'win_y')
+if exists ~= 0 then globals.win_y = tonumber(win_y) end
 local exists, seltracks = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_seltracks')
 if exists ~= 0 then globals.ui_checkbox_seltracks = seltracks == 'true' end
 local exists, volume = reaper.GetProjExtState(0, 'snapshooter', 'ui_checkbox_volume')
@@ -617,10 +623,19 @@ function ui_start()
   local sep = package.config:sub(1, 1)
   local script_folder = debug.getinfo(1).source:match("@?(.*[\\|/])")
   local rtk = dofile(script_folder .. 'tilr_Snapshooter' .. sep .. 'rtk.lua')
-  local window = rtk.Window{w=470, h=550}
+  local window = rtk.Window{ w=470, h=513, title='Snapshooter'}
+  window.onmove = function (self)
+    reaper.SetProjExtState(0, 'snapshooter', 'win_x', self.x)
+    reaper.SetProjExtState(0, 'snapshooter', 'win_y', self.y)
+  end
   window:open{align='center'}
-  local box = window:add(rtk.VBox{margin=10})
-  box:add(rtk.Heading{'Snapshooter', bmargin=10})
+  window:attr('x', globals.win_x)
+  window:attr('y', globals.win_y)
+
+  local box = window:add(rtk.VBox{padding=10})
+  -- local toolbar = box:add(rtk.HBox{tmargin=-10})
+  -- toolbar:add(rtk.Box.FLEXSPACE)
+  -- toolbar:add(rtk.Button{'?', flat=true, textcolor2=0x777777})
 
   for i = 1, 12 do
     local row = box:add(rtk.HBox{bmargin=5})
