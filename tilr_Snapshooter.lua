@@ -20,6 +20,7 @@ globals = {
   invert_transition = false,
   points_shape = 0,
   points_tension = 0,
+  tween_custom_duration = 1000,
   tween = 'none',
   ease = 'linear'
 }
@@ -45,6 +46,8 @@ local exists, ease = reaper.GetProjExtState(0, 'snapshooter', 'ui_ease_menu')
 if exists ~= 0 then globals.ease = ease end
 local exists, shape = reaper.GetProjExtState(0, 'snapshooter', 'points_shape')
 if exists ~= 0 then globals.points_shape = tonumber(shape) end
+local exists, duration = reaper.GetProjExtState(0, 'snapshooter', 'tween_custom_duration')
+if exists ~= 0 then globals.tween_custom_duration = tonumber(duration) end
 local exists, tension = reaper.GetProjExtState(0, 'snapshooter', 'points_tension')
 if exists ~= 0 then globals.points_tension = tonumber(tension) end
 local exists, invert = reaper.GetProjExtState(0, 'snapshooter', 'invert_transition')
@@ -484,6 +487,7 @@ function applysnap(slot, write)
       if (globals.tween == '1/2bar') then duration = duration / 2 end
       if (globals.tween == '2bar') then duration = duration * 2 end
       if (globals.tween == '4bar') then duration = duration * 4 end
+      if (globals.tween == 'custom') then duration = globals.tween_custom_duration / 1000 end
       ease_fn = tween_fns.linear
       if (globals.ease == 'easein') then ease_fn = tween_fns.ease_in end
       if (globals.ease == 'easeout') then ease_fn = tween_fns.ease_out end
@@ -765,18 +769,14 @@ function ui_start()
         { 'None', id='none' },
         { '1/4 Bar', id='1/4bar' },
         { '1/2 Bar', id='1/2bar' },
-        { '1 Bar', id='1bar'},
-        { '2 Bar', id='2bar'},
-        { '4 Bar', id='4bar'},
+        { '1 Bar', id='1bar' },
+        { '2 Bar', id='2bar' },
+        { '4 Bar', id='4bar' },
+        { 'Custom', id='custom' }
     }
   })
-  tween_menu:select(globals.tween)
-  tween_menu.onchange = function (self)
-    reaper.SetProjExtState(0, 'snapshooter', 'ui_tween_menu', self.selected)
-    globals.tween = self.selected
-  end
 
-  row:add(rtk.Text{'Ease', lmargin=20, rmargin=5, tmargin=5})
+  row:add(rtk.Text{'Ease', lmargin=10, rmargin=5, tmargin=5})
   local ease_menu = row:add(rtk.OptionMenu{
     menu = {
         { 'Linear', id='linear' },
@@ -790,6 +790,28 @@ function ui_start()
     reaper.SetProjExtState(0, 'snapshooter', 'ui_ease_menu', self.selected)
     globals.ease = self.selected
   end
+
+  local duration_text = row:add(rtk.Text{'Duration', lmargin=10, tmargin=5})
+  local duration_entry = row:add(rtk.Entry{value=globals.tween_custom_duration, lmargin=10, w=70})
+
+  duration_entry.onchange = function (self)
+    local value = tonumber(self.value) or 0
+    globals.tween_custom_duration = value
+    reaper.SetProjExtState(0, 'snapshooter', 'tween_custom_duration', value)
+  end
+
+  tween_menu.onchange = function (self)
+    reaper.SetProjExtState(0, 'snapshooter', 'ui_tween_menu', self.selected)
+    globals.tween = self.selected
+    duration_text:attr('visible', self.selected == 'custom')
+    duration_entry:attr('visible', self.selected == 'custom')
+  end
+  tween_menu:select(globals.tween)
+  -- local duration_slider = row:add(rtk.Slider{min=0, max=5000, lmargin=5, tmargin=8})
+  -- duration_slider.onchange = function (self)
+  --   log('okay')
+  --   duration_text:attr('text', math.floor(self.value) .. 'ms')
+  -- end
 
   ui_refresh_buttons()
 end
