@@ -632,10 +632,9 @@ function ui_start()
   window:attr('x', globals.win_x)
   window:attr('y', globals.win_y)
 
-  local box = window:add(rtk.VBox{padding=10})
-  -- local toolbar = box:add(rtk.HBox{tmargin=-10})
-  -- toolbar:add(rtk.Box.FLEXSPACE)
-  -- toolbar:add(rtk.Button{'?', flat=true, textcolor2=0x777777})
+  local box = rtk.VBox{padding=10}
+  local vp = rtk.Viewport{box, smoothscroll=true,  scrollbar_size=3}
+  window:add(vp)
 
   for i = 1, 12 do
     local row = box:add(rtk.HBox{bmargin=5})
