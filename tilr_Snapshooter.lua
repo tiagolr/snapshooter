@@ -442,13 +442,6 @@ function clearEnvelopesAndAddStartingPoint(diff, starttime, endtime)
   end
 end
 
-function savesnap(slot)
-  slot = slot or 1
-  snap = makesnap()
-  reaper.SetProjExtState(0, 'snapshooter', 'snap'..slot, stringify(snap))
-  reaper.SetProjExtState(0, 'snapshooter', 'snapdate'..slot, os.date('%c'))
-end
-
 function applysnap(slot, write)
   reaper.Undo_BeginBlock()
   reaper.PreventUIRefresh(1)
@@ -508,8 +501,26 @@ function applysnap(slot, write)
   reaper.Undo_EndBlock('apply snapshot', 0)
 end
 
+function savesnap(slot)
+  slot = slot or 1
+  snap = makesnap()
+  isNewsnap = reaper.GetProjExtState(0, 'snapshooter', 'snap'..slot) == 0
+  if isNewsnap then
+    reaper.SetProjExtState(0, 'snapshooter', 'snapname'..slot, os.date('%c'))
+  else
+    _, snapname = reaper.GetProjExtState(0, 'snapshooter', 'snapname'..slot)
+    _, snapdate = reaper.GetProjExtState(0, 'snapshooter', 'snapdate'..slot)
+    if (snapname == snapdate) then
+      reaper.SetProjExtState(0, 'snapshooter', 'snapname'..slot, os.date('%c'))
+    end
+  end
+  reaper.SetProjExtState(0, 'snapshooter', 'snap'..slot, stringify(snap))
+  reaper.SetProjExtState(0, 'snapshooter', 'snapdate'..slot, os.date('%c'))
+end
+
 function clearsnap(slot)
   reaper.SetProjExtState(0, 'snapshooter', 'snap'..slot, '')
+  reaper.SetProjExtState(0, 'snapshooter', 'snapname'..slot, '')
   reaper.SetProjExtState(0, 'snapshooter', 'snapdate'..slot, '')
 end
 
@@ -584,7 +595,7 @@ function ui_refresh_buttons()
   for i, row in ipairs(ui_snaprows) do
     hassnap = reaper.GetProjExtState(0, 'snapshooter', 'snap'..i) ~= 0
     row.children[1][1]:attr('color', hassnap and 0x99BD13 or 0x999999) -- savebtn
-    row.children[2][1]:attr('color', hassnap and 0xffffff or 0x777777) -- savetxt
+    row.children[2][1]:attr('textcolor', hassnap and 0xffffff or 0x777777) -- savetxt
     row.children[3][1]:attr('color', hassnap and 0x999999 or 0x555555) -- applybtn
     row.children[4][1]:attr('color', hassnap and 0xffffff or 0x777777) -- applytxt
     row.children[5][1]:attr('color', hassnap and 0x999999 or 0x555555) -- writebtn
@@ -592,8 +603,8 @@ function ui_refresh_buttons()
     row.children[7][1]:attr('color', hassnap and 0x999999 or 0x555555) -- delbtn
     row.children[8][1]:attr('color', hassnap and 0xffffff or 0x777777) -- deltxt
 
-    status, datestr = reaper.GetProjExtState(0, 'snapshooter', 'snapdate'..i)
-    row.children[2][1]:attr('text', hassnap and ' '..datestr or ' Empty')
+    _, snapname = reaper.GetProjExtState(0, 'snapshooter', 'snapname'..i)
+    row.children[2][1]:attr('value', hassnap and snapname or 'Empty')
   end
 end
 
@@ -611,7 +622,14 @@ function ui_start()
   for i = 1, 12 do
     local row = box:add(rtk.HBox{bmargin=5})
     local button = row:add(rtk.Button{circular=true})
-    local text = row:add(rtk.Text{string.format("%02d",i)..' Empty', w=230, textalign='center', lmargin=10})
+    -- local text = row:add(rtk.Text{' Empty', w=230, textalign='center', lmargin=10})
+    local inputtext = row:add(rtk.Entry{value='Empty', w=230, bmargin=-5, tmargin=-2, lmargin=10, lpadding=0, bg=0x333333, border_hover='#333333', border_focused='#333333'})
+    inputtext.onchange = function (self)
+      hassnap = reaper.GetProjExtState(0, 'snapshooter', 'snap'..i) ~= 0
+      if hassnap then
+        reaper.SetProjExtState(0, 'snapshooter', 'snapname'..i, self.value)
+      end
+    end
     button.onclick = function ()
       savesnap(i)
       ui_refresh_buttons()
