@@ -130,33 +130,6 @@ function difference (s1, s2)
   return diff
 end
 
--- stringify/parse snapshot for mem storage
-function stringify(snap)
-  local entries = {}
-  for i, line in ipairs(snap) do
-    for j, col in ipairs(line) do
-      line[j] = tostring(col)
-    end
-    table.insert(entries, table.concat(line, ','))
-  end
-  return table.concat(entries, '\n')
-end
-
-function parse(snapstr)
-  function splitline(line)
-    local split = {}
-    for word in string.gmatch(line, '([^,]+)') do
-      table.insert(split, word)
-    end
-    return split
-  end
-  local lines = {}
-  for line in string.gmatch(snapstr, '([^\n]+)') do
-    table.insert(lines, splitline(line))
-  end
-  return lines
-end
-
 function insertSendEnvelopePoint(track, key, cnt, value, type, shape, tension)
   local count = 0
   local cursor = reaper.GetCursorPosition()
@@ -198,7 +171,7 @@ function showTrackEnvelopes(track, envtype)
   end
 end
 
--- apply snapshot to params or write to timeline
+-- apply snapshot to params or write diff points to cursor
 function applydiff(diff, write, tween)
   local points_shape = globals.invert_transition and globals.points_shape or 0
   local points_tension = globals.invert_transition and globals.points_tension or 0
@@ -345,6 +318,7 @@ function applydiff(diff, write, tween)
   end
 end
 
+-- Writes current state points to beggining of time selection
 function clearEnvelopesAndAddStartingPoint(diff, starttime, endtime)
   if globals.preserve_edges then
     _starttime = starttime + 0.000000001
@@ -528,6 +502,33 @@ function clearsnap(slot)
   reaper.SetProjExtState(0, 'snapshooter', 'snapdate'..slot, '')
 end
 
+-- stringify/parse snapshot for mem storage
+function stringify(snap)
+  local entries = {}
+  for i, line in ipairs(snap) do
+    for j, col in ipairs(line) do
+      line[j] = tostring(col)
+    end
+    table.insert(entries, table.concat(line, ','))
+  end
+  return table.concat(entries, '\n')
+end
+
+function parse(snapstr)
+  function splitline(line)
+    local split = {}
+    for word in string.gmatch(line, '([^,]+)') do
+      table.insert(split, word)
+    end
+    return split
+  end
+  local lines = {}
+  for line in string.gmatch(snapstr, '([^\n]+)') do
+    table.insert(lines, splitline(line))
+  end
+  return lines
+end
+
 --------------------------------------------------------------------------------
 -- Tween
 --------------------------------------------------------------------------------
@@ -613,8 +614,6 @@ function ui_refresh_buttons()
 end
 
 function ui_start()
-  -- package.path = reaper.GetResourcePath() .. '/Scripts/rtk/1/?.lua'
-  -- local rtk = require('rtk')
   local sep = package.config:sub(1, 1)
   local script_folder = debug.getinfo(1).source:match("@?(.*[\\|/])")
   local rtk = dofile(script_folder .. 'tilr_Snapshooter' .. sep .. 'rtk.lua')
@@ -626,7 +625,6 @@ function ui_start()
   for i = 1, 12 do
     local row = box:add(rtk.HBox{bmargin=5})
     local button = row:add(rtk.Button{circular=true})
-    -- local text = row:add(rtk.Text{' Empty', w=230, textalign='center', lmargin=10})
     local inputtext = row:add(rtk.Entry{value='Empty', w=230, bmargin=-5, tmargin=-2, lmargin=10, lpadding=0, bg=0x333333, border_hover='#333333', border_focused='#333333'})
     inputtext.onchange = function (self)
       hassnap = reaper.GetProjExtState(0, 'snapshooter', 'snap'..i) ~= 0
@@ -807,11 +805,6 @@ function ui_start()
     duration_entry:attr('visible', self.selected == 'custom')
   end
   tween_menu:select(globals.tween)
-  -- local duration_slider = row:add(rtk.Slider{min=0, max=5000, lmargin=5, tmargin=8})
-  -- duration_slider.onchange = function (self)
-  --   log('okay')
-  --   duration_text:attr('text', math.floor(self.value) .. 'ms')
-  -- end
 
   ui_refresh_buttons()
 end
