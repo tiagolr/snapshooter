@@ -494,7 +494,7 @@ function savesnap(slot)
   else
     _, snapname = reaper.GetProjExtState(0, 'snapshooter', 'snapname'..slot)
     _, snapdate = reaper.GetProjExtState(0, 'snapshooter', 'snapdate'..slot)
-    if (snapname == snapdate) then
+    if (snapname == snapdate or snapname == '') then
       reaper.SetProjExtState(0, 'snapshooter', 'snapname'..slot, os.date('%c'))
     end
   end
@@ -623,18 +623,26 @@ function ui_start()
   local sep = package.config:sub(1, 1)
   local script_folder = debug.getinfo(1).source:match("@?(.*[\\|/])")
   local rtk = dofile(script_folder .. 'tilr_Snapshooter' .. sep .. 'rtk.lua')
-  local window = rtk.Window{ w=470, h=513, title='Snapshooter'}
+  local window = rtk.Window{ w=470, h=553, title='Snapshooter'}
   window.onmove = function (self)
     reaper.SetProjExtState(0, 'snapshooter', 'win_x', self.x)
     reaper.SetProjExtState(0, 'snapshooter', 'win_y', self.y)
   end
   window:open{align='center'}
-  window:attr('x', globals.win_x)
-  window:attr('y', globals.win_y)
+  if globals.win_x and globals.win_y then
+    window:attr('x', globals.win_x)
+    window:attr('y', globals.win_y)
+  end
 
-  local box = rtk.VBox{padding=10}
+  local box = rtk.VBox{padding=10, tpadding=50}
   local vp = rtk.Viewport{box, smoothscroll=true,  scrollbar_size=3}
   window:add(vp)
+
+  local toolbar = box:add(rtk.HBox({ tmargin=-40, bmargin=10 }))
+  toolbar:add(rtk.Heading{'Snapshooter'})
+  toolbar:add(rtk.Box.FLEXSPACE)
+
+  -- box:add(rtk.Heading{'Snapshooter', tmargin=-30, bmargin=10})
 
   for i = 1, 12 do
     local row = box:add(rtk.HBox{bmargin=5})
